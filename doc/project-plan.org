@@ -227,7 +227,7 @@ For ESP32-S3 this is fine, but you should:
 #+begin_src 
 CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN=4096
 #+end_src
-￼
+
 **** JSON size
 Keep documents small.
 #+begin_src 
@@ -240,7 +240,7 @@ For production you should load the CSIP server root certificate.
 #+begin_src 
 client.setCACert(root_cert);
 #+end_src
-￼
+
 *** Suggested Feature Set for a Minimal Client
 Minimum viable CSIP client:
 #+begin_src 
@@ -252,7 +252,6 @@ Minimum viable CSIP client:
 #+end_src
 
 Optional:
-
 - MQTT transport
 - OTA firmware
 - NTP time sync
@@ -281,7 +280,7 @@ export limit
 load shedding
 EV charging throttle
 #+end_src
-￼
+
 *** Strong Recommendation (Industry Practice)
 Most commercial systems do not implement CSIP directly on the MCU.
 
@@ -289,7 +288,7 @@ Instead they use:
 #+begin_src 
 MCU → MQTT → Edge Gateway → CSIP
 #+end_src
-￼
+
 Example gateway platforms:
 - Home Assistant
 - Node‑RED
@@ -300,7 +299,7 @@ Reasons:
 - easier OTA updates
 - easier debugging
 
-*** If you want, I can also generate
+*** (ChatGPT) If you want, I can also generate
 - A complete ESP32 CSIP client repo
 - Arduino PlatformIO project
 - full CSIP message models
@@ -310,10 +309,3 @@ Reasons:
 
 I can also show how to build a CSIP ↔ Home Assistant bridge, which is very
 useful if you're already doing energy integrations.
-
-￼
-￼
-￼
-￼
-￼
-￼
