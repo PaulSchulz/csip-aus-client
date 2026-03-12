@@ -1,0 +1,56 @@
+* Project Plan
+** Introduction                                                           :TOC:
+- [[#project-plan][Project Plan]]
+  - [[#discussion][Discussion]]
+  - [[#outline][Outline]]
+
+** Discussion
+A lot of the following was produced by ChatGPT when asked about how to create
+the firmware for a edge device which supports CSIP-AUS.
+
+** Outline
+To build a CSIP-AUS client on a microcontroller like the ESP32‑S3, the key
+challenge is that CSIP‑AUS (Consumer Switching Interface Protocol – Australia)
+is normally implemented on full Linux systems (gateways, EV chargers, batteries,
+etc.) and relies on:
+
+- HTTPS/TLS
+- JSON APIs
+- OAuth2 / token authentication
+- Continuous internet connectivity
+
+An ESP32-class MCU can do it, but the design must be very lightweight and
+usually only implements the client subset of the spec.
+
+Below is a practical architecture used in embedded implementations.
+
+*** CSIP-AUS Overview (What your client must do)
+A CSIP-AUS Client Energy Resource (CER) communicates with an Aggregator.
+
+Typical functions:
+
+| Function                | Direction       |
+|-------------------------+-----------------|
+| Heartbeat/status        | Client → Server |
+| Receive dispatch limits | Server → Client |
+| Acknowledge commands    | Client → Server |
+
+Typical messages:
+#+begin_src 
+POST /cer/register
+POST /cer/heartbeat
+POST /cer/event
+GET  /dispatch/instructions
+#+end_src
+
+Payloads are JSON.
+
+Example dispatch message:
+#+begin_src json
+{
+  "eventId": "123456",
+  "limitW": 3500,
+  "startTime": "2026-03-12T10:00:00Z",
+  "duration": 900
+}
+#+end_src
