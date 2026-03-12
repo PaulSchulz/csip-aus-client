@@ -128,7 +128,7 @@ private:
 
 };
 #+end_src
-￼
+
 csip_client.cpp
 #+begin_src cpp
 #include "csip_client.h"
