@@ -24,13 +24,14 @@ usually only implements the client subset of the spec.
 
 Below is a practical architecture used in embedded implementations.
 
-*** CSIP-AUS Overview (What your client must do)
+*** CSIP-AUS Overview (What client must do)
 A CSIP-AUS Client Energy Resource (CER) communicates with an Aggregator.
 
 Typical functions:
 
 | Function                | Direction       |
 |-------------------------+-----------------|
+| Register device         | Client → Server |
 | Heartbeat/status        | Client → Server |
 | Receive dispatch limits | Server → Client |
 | Acknowledge commands    | Client → Server |
@@ -54,3 +55,265 @@ Example dispatch message:
   "duration": 900
 }
 #+end_src
+
+*** Recommended Architecture for ESP32-S3
+Hardware
+- ESP32-S3
+- WiFi
+- TLS capable
+
+Key libraries:
+
+#+begin_src 
+WiFi.h
+WiFiClientSecure.h
+HTTPClient.h
+ArduinoJson
+#+end_src
+
+*** Client Architecture
+
+Structure of firmware:
+#+begin_src 
+/src
+   main.cpp
+   csip_client.h
+   csip_client.cpp
+   config.h
+   dispatch_handler.cpp
+#+end_src
+
+Main tasks:
+#+begin_src 
+WiFi task
+CSIP client task
+Dispatch handler
+Device control
+#+end_src￼
+
+Flow:
+#+begin_src 
+WiFi connect
+    ↓
+Authenticate
+    ↓
+Register CER
+    ↓
+Heartbeat loop
+    ↓
+Poll dispatch endpoint
+    ↓
+Apply limits
+#+end_src￼
+
+*** Basic CSIP Client Skeleton
+csip_client.h
+
+#+begin_src cpp
+#pragma once
+#include <WiFiClientSecure.h>
+
+class CSIPClient {
+
+public:
+
+  bool begin();
+  bool registerCER();
+  bool heartbeat();
+  bool getDispatch();
+
+private:
+
+  WiFiClientSecure client;
+
+};
+#+end_src
+￼
+csip_client.cpp
+#+begin_src cpp
+#include "csip_client.h"
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+static const char* server = "api.csip.example.com";
+
+bool CSIPClient::begin()
+{
+    client.setInsecure();  // use certificate in production
+    return true;
+}
+
+bool CSIPClient::registerCER()
+{
+    HTTPClient https;
+
+    https.begin(client, "https://api.csip.example.com/cer/register");
+    https.addHeader("Content-Type", "application/json");
+
+    StaticJsonDocument<256> doc;
+
+    doc["deviceId"] = "ESP32-001";
+    doc["type"] = "load";
+
+    String body;
+    serializeJson(doc, body);
+
+    int code = https.POST(body);
+
+    https.end();
+
+    return (code == 200);
+}
+#+end_src￼
+
+*** Dispatch Polling Example
+#+begin_src cpp
+bool CSIPClient::getDispatch()
+{
+    HTTPClient https;
+
+    https.begin(client, "https://api.csip.example.com/dispatch");
+
+    int code = https.GET();
+
+    if(code != 200)
+        return false;
+
+    String payload = https.getString();
+
+    StaticJsonDocument<512> doc;
+    deserializeJson(doc, payload);
+
+    int limit = doc["limitW"];
+
+    applyPowerLimit(limit);
+
+    https.end();
+
+    return true;
+}
+#+end_src￼
+
+*** Main Loop
+#+begin_src cpp
+CSIPClient csip;
+
+void setup()
+{
+    WiFi.begin("ssid","password");
+
+    while(WiFi.status() != WL_CONNECTED)
+        delay(1000);
+
+    csip.begin();
+    csip.registerCER();
+}
+
+void loop()
+{
+    csip.heartbeat();
+    csip.getDispatch();
+
+    delay(30000);
+}
+#+end_src￼
+
+*** Important ESP32 Considerations
+**** TLS RAM usage
+
+HTTPS consumes ~50-70 KB RAM.
+
+For ESP32-S3 this is fine, but you should:
+#+begin_src 
+CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN=4096
+#+end_src
+￼
+**** JSON size
+Keep documents small.
+#+begin_src 
+StaticJsonDocument<512>
+#+end_src
+Avoid dynamic allocation.
+
+**** Certificate validation
+For production you should load the CSIP server root certificate.
+#+begin_src 
+client.setCACert(root_cert);
+#+end_src
+￼
+*** Suggested Feature Set for a Minimal Client
+Minimum viable CSIP client:
+#+begin_src 
+✔ WiFi connect
+✔ CER registration
+✔ periodic heartbeat
+✔ dispatch polling
+✔ apply limit callback
+#+end_src
+
+Optional:
+
+- MQTT transport
+- OTA firmware
+- NTP time sync
+- TLS certificate validation
+- device telemetry
+
+*** Real-World Integration Example
+A practical application:
+
+Home energy gateway
+#+begin_src 
+Solar inverter
+Battery
+EV charger
+        ↓
+ESP32 CSIP client
+        ↓
+Aggregator
+        ↓
+AEMO / DNSP
+#+end_src
+￼
+The ESP32 would enforce:
+#+begin_src 
+export limit
+load shedding
+EV charging throttle
+#+end_src
+￼
+*** Strong Recommendation (Industry Practice)
+Most commercial systems do not implement CSIP directly on the MCU.
+
+Instead they use:
+#+begin_src 
+MCU → MQTT → Edge Gateway → CSIP
+#+end_src
+￼
+Example gateway platforms:
+- Home Assistant
+- Node‑RED
+- custom Linux gateway
+
+Reasons:
+- easier certificate management
+- easier OTA updates
+- easier debugging
+
+*** If you want, I can also generate
+- A complete ESP32 CSIP client repo
+- Arduino PlatformIO project
+- full CSIP message models
+- dispatch event scheduler
+- certificate handling
+- async networking
+
+I can also show how to build a CSIP ↔ Home Assistant bridge, which is very
+useful if you're already doing energy integrations.
+
+￼
+￼
+￼
+￼
+￼
+￼
