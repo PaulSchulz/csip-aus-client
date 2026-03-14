@@ -1,4 +1,4 @@
-// [[file:../doc/project-plan.org::*Basic CSIP Client Skeleton][Basic CSIP Client Skeleton:1]]
+// [[file:../doc/project-plan.org::*Basic CSIP Client][Basic CSIP Client:1]]
 #pragma once
 #include <WiFiClientSecure.h>
 
@@ -16,4 +16,4 @@ private:
   WiFiClientSecure client;
 
 };
-// Basic CSIP Client Skeleton:1 ends here
+// Basic CSIP Client:1 ends here

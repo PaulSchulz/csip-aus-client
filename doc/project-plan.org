@@ -3,6 +3,7 @@
 - [[#project-plan][Project Plan]]
   - [[#discussion][Discussion]]
   - [[#outline][Outline]]
+  - [[#basic-csip-client][Basic CSIP Client]]
 
 ** Discussion
 A lot of the following was produced by ChatGPT when asked about how to create
@@ -106,7 +107,7 @@ Poll dispatch endpoint
 Apply limits
 #+end_src￼
 
-*** Basic CSIP Client Skeleton
+** Basic CSIP Client
 
 csip_client.h
 #+begin_src cpp :tangle ../src/csip_client.h :main no :comments link
@@ -219,10 +220,31 @@ void loop()
 #+en_d
 #+end_src
 
-#+begin_src cpp :tangle ../src/config.h :main no :comment link
+#+begin_src cpp :tangle ../include/config.h :main no :comment link
 // Put something here.
 #+end_src
 
+*** Project file
+
+#+begin_src ini :tangle ../platformio.ini  :comment link
+[env:esp32-s3]
+platform = espressif32
+board = esp32-s3-devkitc-1
+framework = arduino
+
+monitor_speed = 115200
+
+build_flags =
+    -DCORE_DEBUG_LEVEL=3
+
+lib_deps =
+    bblanchon/ArduinoJson @ ^7.0.0
+
+board_build.partitions = default.csv
+
+upload_speed = 921600
+
+#+end_src
 
 *** Important ESP32 Considerations
 **** TLS RAM usage
