@@ -4,6 +4,7 @@
   - [[#discussion][Discussion]]
   - [[#outline][Outline]]
   - [[#basic-csip-client][Basic CSIP Client]]
+  - [[#platformio][PlatformIO]]
 
 ** Discussion
 A lot of the following was produced by ChatGPT when asked about how to create
@@ -130,16 +131,17 @@ private:
 };
 #+end_src
 
+src/csip_client.cpp
 #+begin_src cpp :tangle ../src/csip_client.cpp :main no :comment link
 #include "csip_client.h"
+#include "config.h"
+
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-static const char* server = "api.csip.example.com";
-
 bool CSIPClient::begin()
 {
-    client.setInsecure();  // use certificate in production
+    client.setInsecure();
     return true;
 }
 
@@ -147,12 +149,14 @@ bool CSIPClient::registerCER()
 {
     HTTPClient https;
 
-    https.begin(client, "https://api.csip.example.com/cer/register");
+    String url = String(CSIP_SERVER) + "/cer/register";
+
+    https.begin(client, url);
     https.addHeader("Content-Type", "application/json");
 
     StaticJsonDocument<256> doc;
 
-    doc["deviceId"] = "ESP32-001";
+    doc["deviceId"] = DEVICE_ID;
     doc["type"] = "load";
 
     String body;
@@ -160,12 +164,69 @@ bool CSIPClient::registerCER()
 
     int code = https.POST(body);
 
+    Serial.printf("Register response: %d\n", code);
+
     https.end();
 
-    return (code == 200);
+    return code == 200;
 }
-#+end_src
 
+bool CSIPClient::heartbeat()
+{
+    HTTPClient https;
+
+    String url = String(CSIP_SERVER) + "/cer/heartbeat";
+
+    https.begin(client, url);
+    https.addHeader("Content-Type", "application/json");
+
+    StaticJsonDocument<128> doc;
+
+    doc["deviceId"] = DEVICE_ID;
+
+    String body;
+    serializeJson(doc, body);
+
+    int code = https.POST(body);
+
+    Serial.printf("Heartbeat: %d\n", code);
+
+    https.end();
+
+    return code == 200;
+}
+
+bool CSIPClient::getDispatch()
+{
+    HTTPClient https;
+
+    String url = String(CSIP_SERVER) + "/dispatch";
+
+    https.begin(client, url);
+
+    int code = https.GET();
+
+    if (code != 200)
+    {
+        https.end();
+        return false;
+    }
+
+    String payload = https.getString();
+
+    StaticJsonDocument<512> doc;
+    deserializeJson(doc, payload);
+
+    int limit = doc["limitW"];
+
+    Serial.printf("Dispatch limit: %dW\n", limit);
+
+    https.end();
+
+    return true;
+}
+
+#+end_src
 
 *** Dispatch Polling Example
 #+begin_src cpp :tangle ../src/dispatch_handler.cpp :main no :comment link
@@ -196,15 +257,40 @@ bool CSIPClient::getDispatch()
 #+end_src
 
 *** Main Loop
-#+begin_src cpp :tangle ../src/main.cpp :main no :comment link
+
+src/main.cpp
+#+begin_src sh :tangle ../src/main.cpp :main no :comment link
+#include <Arduino.h>
+#include <WiFi.h>
+
+#include "config.h"
+#include "csip_client.h"
+
 CSIPClient csip;
+
+unsigned long lastHeartbeat = 0;
+
+void connectWiFi()
+{
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    Serial.print("Connecting");
+
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.println();
+    Serial.println("WiFi connected");
+}
 
 void setup()
 {
-    WiFi.begin("ssid","password");
+    Serial.begin(115200);
 
-    while(WiFi.status() != WL_CONNECTED)
-        delay(1000);
+    connectWiFi();
 
     csip.begin();
     csip.registerCER();
@@ -212,16 +298,28 @@ void setup()
 
 void loop()
 {
-    csip.heartbeat();
-    csip.getDispatch();
+    if (millis() - lastHeartbeat > HEARTBEAT_INTERVAL)
+    {
+        csip.heartbeat();
+        csip.getDispatch();
 
-    delay(30000);
+        lastHeartbeat = millis();
+    }
 }
-#+en_d
 #+end_src
 
+include/config.h
 #+begin_src cpp :tangle ../include/config.h :main no :comment link
-// Put something here.
+#pragma once
+
+#define WIFI_SSID       "YOUR_WIFI"
+#define WIFI_PASSWORD   "YOUR_PASSWORD"
+
+#define CSIP_SERVER     "https://api.csip.example.com"
+
+#define DEVICE_ID       "ESP32-CSIP-001"
+
+#define HEARTBEAT_INTERVAL 30000
 #+end_src
 
 *** Project file
@@ -337,3 +435,33 @@ Reasons:
 
 I can also show how to build a CSIP ↔ Home Assistant bridge, which is very
 useful if you're already doing energy integrations.
+
+** PlatformIO
+*** Installation
+See: [[https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html#installation-installer-script]]
+
+On Ubuntu, need to install a udev rules file so that the supported boards can
+automatically be identified.
+
+#+begin_src shell
+  curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/system/99-platformio-udev.rules | sudo tee /etc/udev/rules.d/99-platformio-udev.rules
+  sudo service udev restart
+#+end_src
+
+*** Build
+Build the project
+#+begin_src shell
+  source venv/bin/activate
+  pio run
+#+end_src
+
+Build, upload and monitor
+#+begin_src shell
+  pio run -t build -t upload -t monitor
+#+end_src
+
+*** Monitor with screen (alternative)
+#+begin_src shell
+screen /dev/ttyUSB0 
+#+end_src
+

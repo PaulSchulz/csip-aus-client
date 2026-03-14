@@ -1,0 +1,4 @@
+* csip-aus-client
+Auduino client for csip-aus
+
+See [[file:doc/project-plan.org][documentation]]

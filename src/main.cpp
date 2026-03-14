@@ -1,21 +1,47 @@
-CSIPClient csip;
+#include <Arduino.h>
+// #include <WiFi.h>
+
+#include "config.h"
+// #include "csip_client.h"
+
+// CSIPClient csip;
+
+unsigned long lastHeartbeat = 0;
+
+// void connectWiFi()
+// {
+//     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+//     Serial.print("Connecting");
+
+//     while (WiFi.status() != WL_CONNECTED)
+//     {
+//         delay(500);
+//         Serial.print(".");
+//     }
+
+//     Serial.println();
+//     Serial.println("WiFi connected");
+// }
 
 void setup()
 {
-    WiFi.begin("ssid","password");
+    Serial.begin(115200);
 
-    while(WiFi.status() != WL_CONNECTED)
-        delay(1000);
+    Serial.printf("setup\n");
+    //    connectWiFi();
 
-    csip.begin();
-    csip.registerCER();
+    // csip.begin();
+    // csip.registerCER();
 }
 
 void loop()
 {
-    csip.heartbeat();
-    csip.getDispatch();
+    if (millis() - lastHeartbeat > HEARTBEAT_INTERVAL) {
+        Serial.printf("*** heartbeat\n");
+        // csip.heartbeat();
+        // csip.getDispatch();
 
-    delay(30000);
+        lastHeartbeat = millis();
+    }
 }
-#+en_d
